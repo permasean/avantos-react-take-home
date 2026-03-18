@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { ActionBlueprintGraph } from '@/types/graph';
 
 export async function GET(
   request: NextRequest,
@@ -11,8 +12,9 @@ export async function GET(
 
     const filePath = path.join(process.cwd(), 'data', 'graph.json');
     const data = fs.readFileSync(filePath, 'utf8');
+    const graphData: ActionBlueprintGraph = JSON.parse(data);
 
-    return NextResponse.json(JSON.parse(data), {
+    return NextResponse.json(graphData, {
       status: 200,
       headers: {
         'Access-Control-Allow-Origin': '*',
