@@ -4,11 +4,11 @@ import path from 'path';
 import { ActionBlueprintGraph } from '@/types/graph';
 
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ tenant: string; blueprintId: string }> }
 ) {
   try {
-    const { tenant, blueprintId } = await params;
+    await params;
 
     const filePath = path.join(process.cwd(), 'data', 'graph.json');
     const data = fs.readFileSync(filePath, 'utf8');
@@ -20,7 +20,7 @@ export async function GET(
         'Access-Control-Allow-Origin': '*',
       },
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: 'Failed to load graph.json' },
       { status: 500 }

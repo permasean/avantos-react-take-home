@@ -50,8 +50,8 @@ export default function GraphViewer({ data }: GraphViewerProps) {
     },
   })), [data.edges]);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [nodes, , onNodesChange] = useNodesState(initialNodes);
+  const [edges, , onEdgesChange] = useEdgesState(initialEdges);
 
   const onNodeClick = useCallback((event: React.MouseEvent, node: FlowNode) => {
     const originalNode = data.nodes.find(n => n.id === node.id);

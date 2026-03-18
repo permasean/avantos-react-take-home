@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { ChevronRight, ChevronDown, Search } from 'lucide-react';
-import { ActionBlueprintGraph, Node } from '@/types/graph';
+import { ActionBlueprintGraph, Node, Form } from '@/types/graph';
 import { cn } from '@/lib/utils';
 
 interface FieldMapping {
@@ -52,7 +52,7 @@ export default function DataSelectorModal({
     });
   };
 
-  const validateFieldTypes = (sourceForm: any, sourceFieldName: string): boolean => {
+  const validateFieldTypes = (sourceForm: Form, sourceFieldName: string): boolean => {
     const sourceFieldType = sourceForm.field_schema.properties[sourceFieldName]?.avantos_type;
 
     if (!currentFieldType || !sourceFieldType) return true;
