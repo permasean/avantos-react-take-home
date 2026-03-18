@@ -81,7 +81,7 @@ export interface FieldProperty {
     enum: null | string[];
     type: string;
   };
-  enum?: string[];
+  enum?: null | string[];
   uniqueItems?: boolean;
 }
 
