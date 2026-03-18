@@ -89,6 +89,20 @@ export default function GraphViewer({ data }: GraphViewerProps) {
     setShowDataModal(true);
   }, []);
 
+  const handleClearMapping = useCallback((fieldName: string) => {
+    if (!selectedNode) return;
+
+    setFieldMappings(prev => {
+      const nodeMappings = { ...(prev[selectedNode.id] || {}) };
+      delete nodeMappings[fieldName];
+
+      return {
+        ...prev,
+        [selectedNode.id]: nodeMappings
+      };
+    });
+  }, [selectedNode]);
+
   return (
     <div className="w-full h-screen">
       <ReactFlow
@@ -110,6 +124,7 @@ export default function GraphViewer({ data }: GraphViewerProps) {
           fieldMappings={fieldMappings[selectedNode.id] || {}}
           onClose={() => setSelectedNode(null)}
           onFieldClick={handleFieldClick}
+          onClearMapping={handleClearMapping}
         />
       )}
 
