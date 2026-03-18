@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useMemo } from 'react';
 import ReactFlow, {
   Node as FlowNode,
   Edge as FlowEdge,
@@ -12,15 +12,26 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { ActionBlueprintGraph, Node } from '@/types/graph';
+import FormPanel from './FormPanel';
+import DataSelectorModal from './DataSelectorModal';
 
 interface GraphViewerProps {
   data: ActionBlueprintGraph;
 }
 
+interface FieldMapping {
+  source: string;
+  field: string;
+}
+
 export default function GraphViewer({ data }: GraphViewerProps) {
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  const [showDataModal, setShowDataModal] = useState(false);
+  const [selectedFieldForMapping, setSelectedFieldForMapping] = useState<string | null>(null);
+  const [fieldMappings, setFieldMappings] = useState<Record<string, Record<string, FieldMapping>>>({});
+  const [tempSelectedMapping, setTempSelectedMapping] = useState<FieldMapping | null>(null);
 
-  const initialNodes: FlowNode[] = data.nodes.map((node) => ({
+  const initialNodes: FlowNode[] = useMemo(() => data.nodes.map((node) => ({
     id: node.id,
     type: 'default',
     position: node.position,
@@ -28,16 +39,16 @@ export default function GraphViewer({ data }: GraphViewerProps) {
       label: node.data.name,
       ...node.data
     },
-  }));
+  })), [data.nodes]);
 
-  const initialEdges: FlowEdge[] = data.edges.map((edge, index) => ({
+  const initialEdges: FlowEdge[] = useMemo(() => data.edges.map((edge, index) => ({
     id: `edge-${index}`,
     source: edge.source,
     target: edge.target,
     markerEnd: {
       type: MarkerType.ArrowClosed,
     },
-  }));
+  })), [data.edges]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -48,6 +59,35 @@ export default function GraphViewer({ data }: GraphViewerProps) {
       setSelectedNode(originalNode);
     }
   }, [data.nodes]);
+
+  const handleFieldSelect = useCallback((mapping: FieldMapping) => {
+    setTempSelectedMapping(mapping);
+  }, []);
+
+  const handleModalCancel = useCallback(() => {
+    setShowDataModal(false);
+    setSelectedFieldForMapping(null);
+    setTempSelectedMapping(null);
+  }, []);
+
+  const handleModalConfirm = useCallback(() => {
+    if (tempSelectedMapping && selectedFieldForMapping && selectedNode) {
+      setFieldMappings(prev => ({
+        ...prev,
+        [selectedNode.id]: {
+          ...(prev[selectedNode.id] || {}),
+          [selectedFieldForMapping]: tempSelectedMapping
+        }
+      }));
+      handleModalCancel();
+    }
+  }, [tempSelectedMapping, selectedFieldForMapping, selectedNode, handleModalCancel]);
+
+  const handleFieldClick = useCallback((fieldName: string, currentMapping: FieldMapping | undefined) => {
+    setSelectedFieldForMapping(fieldName);
+    setTempSelectedMapping(currentMapping || null);
+    setShowDataModal(true);
+  }, []);
 
   return (
     <div className="w-full h-screen">
@@ -63,53 +103,26 @@ export default function GraphViewer({ data }: GraphViewerProps) {
         <Controls />
       </ReactFlow>
 
-      {selectedNode && (
-        <div className="absolute top-4 right-4 w-80 bg-white dark:bg-zinc-900 p-6 rounded-lg shadow-lg border border-zinc-200 dark:border-zinc-800 max-h-[80vh] overflow-y-auto">
-          <div className="flex justify-between items-start mb-4">
-            <h2 className="text-xl font-semibold">{selectedNode.data.name}</h2>
-            <button
-              onClick={() => setSelectedNode(null)}
-              className="text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
-            >
-              ✕
-            </button>
-          </div>
+      {selectedNode && selectedNode.data.component_type === 'form' && (
+        <FormPanel
+          selectedNode={selectedNode}
+          data={data}
+          fieldMappings={fieldMappings[selectedNode.id] || {}}
+          onClose={() => setSelectedNode(null)}
+          onFieldClick={handleFieldClick}
+        />
+      )}
 
-          <div className="space-y-3 text-sm">
-            <div>
-              <span className="font-medium">Type:</span> {selectedNode.data.component_type}
-            </div>
-            <div>
-              <span className="font-medium">ID:</span> {selectedNode.data.component_id}
-            </div>
-
-            {selectedNode.data.prerequisites.length > 0 && (
-              <div>
-                <span className="font-medium">Prerequisites:</span>
-                <ul className="mt-1 list-disc list-inside">
-                  {selectedNode.data.prerequisites.map((prereq) => {
-                    const prereqNode = data.nodes.find(n => n.id === prereq);
-                    return (
-                      <li key={prereq} className="text-zinc-600 dark:text-zinc-400">
-                        {prereqNode?.data.name || prereq}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            )}
-
-            <div>
-              <span className="font-medium">SLA Duration:</span>{' '}
-              {selectedNode.data.sla_duration.number} {selectedNode.data.sla_duration.unit}
-            </div>
-
-            <div>
-              <span className="font-medium">Approval Required:</span>{' '}
-              {selectedNode.data.approval_required ? 'Yes' : 'No'}
-            </div>
-          </div>
-        </div>
+      {showDataModal && selectedFieldForMapping && selectedNode && (
+        <DataSelectorModal
+          selectedNode={selectedNode}
+          selectedFieldName={selectedFieldForMapping}
+          data={data}
+          tempSelectedMapping={tempSelectedMapping}
+          onFieldSelect={handleFieldSelect}
+          onCancel={handleModalCancel}
+          onConfirm={handleModalConfirm}
+        />
       )}
     </div>
   );
