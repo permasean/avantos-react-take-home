@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { ChevronRight, ChevronDown, Search } from 'lucide-react';
-import { ActionBlueprintGraph, Node, Form } from '@/types/graph';
 import { cn } from '@/lib/utils';
 
 interface FieldMapping {
@@ -10,10 +9,21 @@ interface FieldMapping {
   field: string;
 }
 
+export interface DataSourceField {
+  name: string;
+  type?: string;
+}
+
+export interface DataSourceSection {
+  id: string;
+  label: string;
+  fields: DataSourceField[];
+}
+
 interface DataSelectorModalProps {
-  selectedNode: Node;
+  sections: DataSourceSection[];
   selectedFieldName: string;
-  data: ActionBlueprintGraph;
+  currentFieldType?: string;
   tempSelectedMapping: FieldMapping | null;
   onFieldSelect: (mapping: FieldMapping) => void;
   onCancel: () => void;
@@ -21,9 +31,9 @@ interface DataSelectorModalProps {
 }
 
 export default function DataSelectorModal({
-  selectedNode,
+  sections,
   selectedFieldName,
-  data,
+  currentFieldType,
   tempSelectedMapping,
   onFieldSelect,
   onCancel,
@@ -33,54 +43,49 @@ export default function DataSelectorModal({
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  const prerequisiteNodes = selectedNode.data.prerequisites
-    .map(prereqId => data.nodes.find(n => n.id === prereqId))
-    .filter((n): n is Node => n !== undefined && n.data.component_type === 'form');
-
-  const currentForm = data.forms.find(f => f.id === selectedNode.data.component_id);
-  const currentFieldType = currentForm?.field_schema.properties[selectedFieldName]?.avantos_type;
-
-  const toggleSection = (section: string) => {
+  const toggleSection = (sectionId: string) => {
     setExpandedSections(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(section)) {
-        newSet.delete(section);
+      if (newSet.has(sectionId)) {
+        newSet.delete(sectionId);
       } else {
-        newSet.add(section);
+        newSet.add(sectionId);
       }
       return newSet;
     });
   };
 
-  const validateFieldTypes = (sourceForm: Form, sourceFieldName: string): boolean => {
-    const sourceFieldType = sourceForm.field_schema.properties[sourceFieldName]?.avantos_type;
-
-    if (!currentFieldType || !sourceFieldType) return true;
-
-    if (currentFieldType === sourceFieldType) {
-      setValidationError(null);
-      return true;
-    }
-
-    setValidationError(
-      `Type mismatch: "${selectedFieldName}" expects "${currentFieldType}" but "${sourceFieldName}" is "${sourceFieldType}"`
-    );
-    return false;
-  };
-
   const handleConfirm = () => {
     if (!tempSelectedMapping) return;
 
-    const sourceNode = prerequisiteNodes.find(n => n.data.name === tempSelectedMapping.source);
-    if (!sourceNode) return;
+    if (currentFieldType) {
+      const section = sections.find(s => s.label === tempSelectedMapping.source);
+      const field = section?.fields.find(f => f.name === tempSelectedMapping.field);
 
-    const sourceForm = data.forms.find(f => f.id === sourceNode.data.component_id);
-    if (!sourceForm) return;
-
-    if (validateFieldTypes(sourceForm, tempSelectedMapping.field)) {
-      onConfirm();
+      if (field?.type && field.type !== currentFieldType) {
+        setValidationError(
+          `Type mismatch: "${selectedFieldName}" expects "${currentFieldType}" but "${tempSelectedMapping.field}" is "${field.type}"`
+        );
+        return;
+      }
     }
+
+    setValidationError(null);
+    onConfirm();
   };
+
+  const filteredSections = searchQuery
+    ? sections
+        .map(section => ({
+          ...section,
+          fields: section.fields.filter(f =>
+            f.name.toLowerCase().includes(searchQuery.toLowerCase())
+          ),
+        }))
+        .filter(s =>
+          s.fields.length > 0 || s.label.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+    : sections;
 
   return (
     <div
@@ -118,44 +123,13 @@ export default function DataSelectorModal({
 
         <div className="flex-1 overflow-y-auto p-4">
           <div className="space-y-1">
-            <button
-              onClick={() => toggleSection('action-properties')}
-              className={cn(
-                "w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded",
-                "hover:bg-zinc-100 dark:hover:bg-zinc-800"
-              )}
-            >
-              {expandedSections.has('action-properties') ? (
-                <ChevronDown className="w-4 h-4" />
-              ) : (
-                <ChevronRight className="w-4 h-4" />
-              )}
-              <span>Action Properties</span>
-            </button>
-
-            <button
-              onClick={() => toggleSection('client-org')}
-              className={cn(
-                "w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded",
-                "hover:bg-zinc-100 dark:hover:bg-zinc-800"
-              )}
-            >
-              {expandedSections.has('client-org') ? (
-                <ChevronDown className="w-4 h-4" />
-              ) : (
-                <ChevronRight className="w-4 h-4" />
-              )}
-              <span>Client Organisation Properties</span>
-            </button>
-
-            {prerequisiteNodes.map((prereqNode) => {
-              const prereqForm = data.forms.find(f => f.id === prereqNode.data.component_id);
-              const isExpanded = expandedSections.has(prereqNode.id);
+            {filteredSections.map((section) => {
+              const isExpanded = expandedSections.has(section.id);
 
               return (
-                <div key={prereqNode.id}>
+                <div key={section.id}>
                   <button
-                    onClick={() => toggleSection(prereqNode.id)}
+                    onClick={() => toggleSection(section.id)}
                     className={cn(
                       "w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded",
                       "hover:bg-zinc-100 dark:hover:bg-zinc-800"
@@ -166,20 +140,22 @@ export default function DataSelectorModal({
                     ) : (
                       <ChevronRight className="w-4 h-4" />
                     )}
-                    <span>{prereqNode.data.name}</span>
+                    <span>{section.label}</span>
                   </button>
 
-                  {isExpanded && prereqForm && (
+                  {isExpanded && (
                     <div className="ml-6 mt-1 space-y-1">
-                      {Object.keys(prereqForm.field_schema.properties).map((fieldName) => {
-                        const isSelected = tempSelectedMapping?.source === prereqNode.data.name && tempSelectedMapping?.field === fieldName;
+                      {section.fields.map((field) => {
+                        const isSelected =
+                          tempSelectedMapping?.source === section.label &&
+                          tempSelectedMapping?.field === field.name;
 
                         return (
                           <button
-                            key={fieldName}
+                            key={field.name}
                             onClick={() => {
                               setValidationError(null);
-                              onFieldSelect({ source: prereqNode.data.name, field: fieldName });
+                              onFieldSelect({ source: section.label, field: field.name });
                             }}
                             className={cn(
                               "w-full text-left px-3 py-1.5 text-sm rounded",
@@ -187,7 +163,7 @@ export default function DataSelectorModal({
                               !isSelected && "hover:bg-zinc-100 dark:hover:bg-zinc-800"
                             )}
                           >
-                            {fieldName}
+                            {field.name}
                           </button>
                         );
                       })}

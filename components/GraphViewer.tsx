@@ -13,7 +13,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import { ActionBlueprintGraph, Node } from '@/types/graph';
 import FormPanel from './FormPanel';
-import DataSelectorModal from './DataSelectorModal';
+import DataSelectorModal, { DataSourceSection } from './DataSelectorModal';
 
 interface GraphViewerProps {
   data: ActionBlueprintGraph;
@@ -89,6 +89,39 @@ export default function GraphViewer({ data }: GraphViewerProps) {
     setShowDataModal(true);
   }, []);
 
+  const modalSections = useMemo((): DataSourceSection[] => {
+    if (!selectedNode || !selectedFieldForMapping) return [];
+
+    const prerequisiteSections: DataSourceSection[] = selectedNode.data.prerequisites
+      .map(prereqId => data.nodes.find(n => n.id === prereqId))
+      .filter((n): n is Node => n !== undefined && n.data.component_type === 'form')
+      .map(prereqNode => {
+        const prereqForm = data.forms.find(f => f.id === prereqNode.data.component_id);
+        return {
+          id: prereqNode.id,
+          label: prereqNode.data.name,
+          fields: prereqForm
+            ? Object.entries(prereqForm.field_schema.properties).map(([name, prop]) => ({
+                name,
+                type: prop.avantos_type,
+              }))
+            : [],
+        };
+      });
+
+    return [
+      { id: 'action-properties', label: 'Action Properties', fields: [] },
+      { id: 'client-org', label: 'Client Organisation Properties', fields: [] },
+      ...prerequisiteSections,
+    ];
+  }, [selectedNode, selectedFieldForMapping, data]);
+
+  const currentFieldType = useMemo(() => {
+    if (!selectedNode || !selectedFieldForMapping) return undefined;
+    const currentForm = data.forms.find(f => f.id === selectedNode.data.component_id);
+    return currentForm?.field_schema.properties[selectedFieldForMapping]?.avantos_type;
+  }, [selectedNode, selectedFieldForMapping, data]);
+
   const handleClearMapping = useCallback((fieldName: string) => {
     if (!selectedNode) return;
 
@@ -130,9 +163,9 @@ export default function GraphViewer({ data }: GraphViewerProps) {
 
       {showDataModal && selectedFieldForMapping && selectedNode && (
         <DataSelectorModal
-          selectedNode={selectedNode}
+          sections={modalSections}
           selectedFieldName={selectedFieldForMapping}
-          data={data}
+          currentFieldType={currentFieldType}
           tempSelectedMapping={tempSelectedMapping}
           onFieldSelect={handleFieldSelect}
           onCancel={handleModalCancel}
