@@ -3,21 +3,13 @@
 import { useState } from 'react';
 import { ChevronRight, ChevronDown, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { DataSourceField, DataSourceSection } from '@/types/dataSources';
+
+export type { DataSourceField, DataSourceSection };
 
 interface FieldMapping {
   source: string;
   field: string;
-}
-
-export interface DataSourceField {
-  name: string;
-  type?: string;
-}
-
-export interface DataSourceSection {
-  id: string;
-  label: string;
-  fields: DataSourceField[];
 }
 
 interface DataSelectorModalProps {

@@ -13,10 +13,12 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import { ActionBlueprintGraph, Node } from '@/types/graph';
 import FormPanel from './FormPanel';
-import DataSelectorModal, { DataSourceSection } from './DataSelectorModal';
+import DataSelectorModal from './DataSelectorModal';
+import { DataSourceSection } from '@/types/dataSources';
 
 interface GraphViewerProps {
   data: ActionBlueprintGraph;
+  externalDataSources?: DataSourceSection[];
 }
 
 interface FieldMapping {
@@ -24,7 +26,7 @@ interface FieldMapping {
   field: string;
 }
 
-export default function GraphViewer({ data }: GraphViewerProps) {
+export default function GraphViewer({ data, externalDataSources = [] }: GraphViewerProps) {
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [showDataModal, setShowDataModal] = useState(false);
   const [selectedFieldForMapping, setSelectedFieldForMapping] = useState<string | null>(null);
@@ -110,11 +112,10 @@ export default function GraphViewer({ data }: GraphViewerProps) {
       });
 
     return [
-      { id: 'action-properties', label: 'Action Properties', fields: [] },
-      { id: 'client-org', label: 'Client Organisation Properties', fields: [] },
+      ...externalDataSources,
       ...prerequisiteSections,
     ];
-  }, [selectedNode, selectedFieldForMapping, data]);
+  }, [selectedNode, selectedFieldForMapping, data, externalDataSources]);
 
   const currentFieldType = useMemo(() => {
     if (!selectedNode || !selectedFieldForMapping) return undefined;
