@@ -100,7 +100,7 @@ describe('DataSelectorModal', () => {
         expect(screen.getByText(/Type mismatch/)).toBeInTheDocument();
     });
 
-    it("search filters fields by name", async () => {
+    it("search filters fields by name and auto-expands matching sections", async () => {
         const user = userEvent.setup();
         const sections: DataSourceSection[] = [
             { id: 'section-1', label: 'Section One', fields: [
@@ -110,7 +110,6 @@ describe('DataSelectorModal', () => {
         ];
         render(<DataSelectorModal {...defaultProp} sections={sections}/>);
         await user.type(screen.getByPlaceholderText('Search'), 'alpha');
-        await user.click(screen.getByText('Section One'));
         expect(screen.getByText('alpha')).toBeInTheDocument();
         expect(screen.queryByText('beta')).not.toBeInTheDocument();
     });

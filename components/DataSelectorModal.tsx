@@ -116,7 +116,9 @@ export default function DataSelectorModal({
         <div className="flex-1 overflow-y-auto p-4">
           <div className="space-y-1">
             {filteredSections.map((section) => {
-              const isExpanded = expandedSections.has(section.id);
+              const isExpanded = searchQuery
+                ? section.fields.length > 0
+                : expandedSections.has(section.id);
 
               return (
                 <div key={section.id}>
