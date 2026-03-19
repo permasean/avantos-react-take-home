@@ -1,36 +1,98 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Avantos React Take-Home
+
+A Next.js application for visualizing and configuring action blueprint graphs. Users can explore workflow nodes, inspect form fields on each node, and map fields to data sources from prerequisite nodes or external sources.
+
+## Tech Stack
+
+- **Next.js 16** (App Router)
+- **React 19**
+- **TypeScript**
+- **ReactFlow** — graph visualization
+- **Tailwind CSS v4**
 
 ## Getting Started
 
-First, run the development server:
+Copy the example env file and set your API base URL:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env.local
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+```env
+API_BASE_URL=http://localhost:3000
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Install dependencies and start the dev server:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm install
+npm run dev
+```
 
-## Learn More
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-To learn more about Next.js, take a look at the following resources:
+## Development Commands
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm run dev       # Start development server
+npm run build     # Build production bundle
+npm start         # Start production server
+npm run lint      # Run ESLint
+npm test          # Run tests
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Architecture
 
-## Deploy on Vercel
+### Data Flow
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The home page (`app/page.tsx`) fetches graph data from the API route, which reads from `data/graph.json`. It also defines static external data sources and passes both down to `GraphViewer`.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### API Route
+
+`GET /api/v1/[tenant]/actions/blueprints/[blueprintId]/graph`
+
+Returns the action blueprint graph for a given tenant and blueprint. Currently reads from `data/graph.json`.
+
+### Components
+
+- **`GraphViewer`** — ReactFlow canvas with node selection. Accepts an `externalDataSources` prop (`DataSourceSection[]`) for data sources coming from APIs, databases, or static config. Internally computes prerequisite node sections from the graph and merges them with external sources when populating the data selector.
+- **`FormPanel`** — Sidebar showing the selected node's form fields and their current mappings.
+- **`DataSelectorModal`** — Modal for mapping a form field to a data source. Supports search with auto-expansion of matching sections and type mismatch validation.
+
+### Adding External Data Sources
+
+To plug in data sources from an API or database, fetch them in `app/page.tsx` and pass them to `GraphViewer`:
+
+```tsx
+const externalDataSources: DataSourceSection[] = await fetchDataSources();
+
+<GraphViewer data={data} externalDataSources={externalDataSources} />
+```
+
+The shape is defined in `types/dataSources.ts`:
+
+```ts
+interface DataSourceSection {
+  id: string;
+  label: string;
+  fields: DataSourceField[];
+}
+
+interface DataSourceField {
+  name: string;
+  type?: string;
+}
+```
+
+### Types
+
+- `types/graph.ts` — Graph, node, form, and edge types
+- `types/dataSources.ts` — `DataSourceField` and `DataSourceSection`
+
+## Testing
+
+```bash
+npm test
+```
+
+Tests live in `__tests__/` mirroring the source structure. Component tests use React Testing Library; API route tests mock `fs` and `next/server`.
